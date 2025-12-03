@@ -86,13 +86,20 @@ long long solveBank(const BatteryBank &bank, int targetDigits) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) {
-        std::cout << "usage: " << argv[0] << " [JOLTAGE SIZE <2 | 12 | etc>] [INPUT FILE PATH]"
-                  << std::endl;
+    // Default values
+    int digitsToFind = 12;
+    std::string filename = "../day3/input";
+
+    // Override if arguments are provided
+    if (argc == 3) {
+        digitsToFind = std::stoi(argv[1]);
+        filename = argv[2];
+    } else if (argc != 1) {
+        std::cout << "usage: " << argv[0] << " [JOLTAGE SIZE] [INPUT FILE PATH]" << std::endl;
+        std::cout << "Defaults: 12 digits, input.txt" << std::endl;
         return 1;
     }
-    int digitsToFind = std::stoi(argv[1]);
-    std::string filename = argv[2];
+
     std::vector<BatteryBank> allBanks = LoadInputs(filename);
     std::cout << "Processing " << allBanks.size() << " banks..." << std::endl;
 
