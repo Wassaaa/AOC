@@ -21,9 +21,14 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             python313
-            python313Packages.flask
             python313Packages.pip
             python313Packages.numpy
+
+            cmake
+            gcc
+            gdb
+            clang
+            perf
           ];
 
           shellHook = ''
