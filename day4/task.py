@@ -31,6 +31,9 @@ def is_accessible(data: HostArray, flat_idx:int, width:int) -> bool:
 def solve_grid(data_array: HostArray, result_array: HostArray, width: int) -> None:
   thread_id = cuda.grid(1)
 
+  # im a leftover, I leave
+  if thread_id > data_array.size:
+    return
   # im not a roll, I leave
   if data_array[thread_id] == 0:
     return
