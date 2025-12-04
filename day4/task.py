@@ -38,6 +38,12 @@ def solve_grid(data_array: HostArray, result_array: HostArray, width: int) -> No
   if thread_id < data_array.size:
     result_array[thread_id] = is_accessible(data_array, thread_id, width)
 
+@cuda.jit
+def update_input(data_array: HostArray, result_array: HostArray) -> None:
+  thread_id = cuda.grid(1)
+  if result_array[thread_id] == 1:
+    data_array[thread_id] = 0
+  result_array[thread_id] = 0
 
 def main() -> None:
 
@@ -64,11 +70,19 @@ def main() -> None:
   blocks_per_grid = (d_data.size + block_size - 1) // block_size
   print(f"Launching Kernel: {blocks_per_grid} blocks x {block_size} threads")
 
-  solve_grid[blocks_per_grid, block_size](d_data, d_result, width)
+  final_sum = 0
 
-  result_data = d_result.copy_to_host()
+  while True:
+    solve_grid[blocks_per_grid, block_size](d_data, d_result, width)
+    result_data = d_result.copy_to_host()
+    current_sum = np.sum(result_data)
+    print(f"current sum:  {final_sum}")
+    if current_sum == 0:
+      break
+    final_sum += current_sum
+    update_input[blocks_per_grid, block_size](d_data, d_result)
 
-  print(f"Accessible rolls:  {np.sum(result_data)}")
+  print(f"Accessible rolls:  {final_sum}")
 
 if __name__ == "__main__":
     main()
