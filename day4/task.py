@@ -1,9 +1,26 @@
 import numpy as np
 import numpy.typing as npt
 from numba import cuda
+import sys
+import time
 
 # Types
 HostArray = npt.NDArray[np.int8]
+
+def render_frame(d_data, width):
+    host_grid = d_data.copy_to_host()
+    height = host_grid.size // width
+    grid_2d = host_grid.reshape((height, width))
+
+    lines = []
+    for row in grid_2d:
+        line = "".join(["█" if cell == 1 else "·" for cell in row])
+        lines.append(line)
+    # \033[H moves cursor to top-left
+    # \033[J clears everything below
+    output = "\033[H\033[J" + "\n".join(lines)
+    sys.stdout.write(output + "\n")
+    sys.stdout.flush()
 
 @cuda.jit(device=True)
 def is_accessible(data: HostArray, flat_idx:int, width:int) -> bool:
@@ -25,25 +42,26 @@ def is_accessible(data: HostArray, flat_idx:int, width:int) -> bool:
 
   return result < 4
 
-
-
 @cuda.jit
-def solve_grid(data_array: HostArray, result_array: HostArray, width: int) -> None:
+def solve_grid(data_array: HostArray, result_array: HostArray, width: int, counter: npt.NDArray) -> None:
   thread_id = cuda.grid(1)
 
   # im a leftover, I leave
-  if thread_id > data_array.size:
+  if thread_id >= data_array.size:
     return
   # im not a roll, I leave
   if data_array[thread_id] == 0:
     return
   # check if accessible n(rolls) < 4
   if thread_id < data_array.size:
-    result_array[thread_id] = is_accessible(data_array, thread_id, width)
+    if is_accessible(data_array, thread_id, width):
+     result_array[thread_id] = 1
+     cuda.atomic.add(counter, 0, 1)
 
 @cuda.jit
 def update_input(data_array: HostArray, result_array: HostArray) -> None:
   thread_id = cuda.grid(1)
+  # remove the 'paper roll' if it was accessible, and reset the result_array to 0s
   if result_array[thread_id] == 1:
     data_array[thread_id] = 0
   result_array[thread_id] = 0
@@ -64,28 +82,34 @@ def main() -> None:
   ]
   h_data = np.array(flat_list, dtype=np.int8)
 
-  # send the 1D array to GPU
+  # send input array
   d_data = cuda.to_device(h_data)
   d_result = cuda.device_array(shape=(d_data.size), dtype=np.int8)
+  d_counter = cuda.to_device(np.zeros(1, dtype=np.int32))
 
   # prep for liftoff
-  block_size = 16
+  block_size = 128
   blocks_per_grid = (d_data.size + block_size - 1) // block_size
+
+  last_sum = np.zeros(1, dtype=np.int32)
   print(f"Launching Kernel: {blocks_per_grid} blocks x {block_size} threads")
 
-  final_sum = 0
+  print("\033[2J", end="")
 
+  # keep all the data on the GPU and run until there is no more moves
   while True:
-    solve_grid[blocks_per_grid, block_size](d_data, d_result, width)
-    result_data = d_result.copy_to_host()
-    current_sum = np.sum(result_data)
-    print(f"current sum:  {final_sum}")
-    if current_sum == 0:
+    solve_grid[blocks_per_grid, block_size](d_data, d_result, width, d_counter)
+    current_sum = d_counter.copy_to_host()
+    if current_sum == last_sum:
       break
-    final_sum += current_sum
-    update_input[blocks_per_grid, block_size](d_data, d_result)
 
-  print(f"Accessible rolls:  {final_sum}")
+    # render_frame(d_data, width)
+    # time.sleep(0.05)
+    print(f"current sum:  {current_sum}")
+    update_input[blocks_per_grid, block_size](d_data, d_result)
+    last_sum = current_sum
+
+  print(f"Accessible rolls:  {current_sum}")
 
 if __name__ == "__main__":
     main()
