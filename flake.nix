@@ -7,15 +7,14 @@
   };
 
   outputs =
-    {
-      nixpkgs,
-      flake-utils,
-      ...
-    }:
+    { nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -23,6 +22,9 @@
             python313
             python313Packages.pip
             python313Packages.numpy
+            python313Packages.numba
+
+            cudatoolkit
 
             cmake
             gcc
@@ -32,7 +34,11 @@
           ];
 
           shellHook = ''
-            echo "AOC development environment loaded"
+            echo "AOC development environment loadeda"
+
+            export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
+            export LD_LIBRARY_PATH=${pkgs.cudatoolkit}/lib:$LD_LIBRARY_PATH
+            export LD_LIBRARY_PATH=${pkgs.cudatoolkit}/nvvm/lib:$LD_LIBRARY_PATH
           '';
         };
       }
