@@ -45,6 +45,7 @@
             cmake
             gcc
             gdb
+            tbb
             clang
             perf
             stdenv.cc.cc.lib
