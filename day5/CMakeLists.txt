@@ -7,8 +7,8 @@ add_executable(day5 main.cpp)
 # ============================================================================
 target_compile_options(day5 PRIVATE
     -Wall -Wextra
-    $<$<CONFIG:Release>:-O3 -march=native -DNDEBUG>
-    $<$<CONFIG:Debug>:-O0 -g>
+    $<$<CONFIG:Release>:-O3 -mavx2 -DNDEBUG -fopt-info-vec-optimized>
+    $<$<CONFIG:Debug>:-O0 -mavx2 -g -fopt-info-vec-optimized>
 )
 
 if(TARGET TBB::tbb)
