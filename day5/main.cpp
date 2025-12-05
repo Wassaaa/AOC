@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
+#include <ranges>
 #include <vector>
 
 struct Event {
@@ -66,22 +67,27 @@ int main() {
             events.emplace_back(range.second + 1, -1);
         }
     }
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto core_start_time = std::chrono::high_resolution_clock::now();
     // sort the events
     std::sort(std::execution::unseq, events.begin(), events.end(), compareEvents);
 
     std::vector<int8_t> values(events.size());
-    std::vector<int32_t> depths(events.size());
     std::vector<int64_t> coords(events.size());
-    // extract 1s and -1s to continuous memory
-    std::transform(std::execution::unseq, events.begin(), events.end(), values.begin(),
-                   [](const Event &event) { return event.type; });
-    // extract coords out of events also for binary search later
-    std::transform(std::execution::unseq, events.begin(), events.end(), coords.begin(),
-                   [](const Event &event) { return event.coords; });
+    std::vector<int32_t> depths(events.size());
+
+    auto event_indices = std::views::iota((size_t)0, events.size());
+    std::for_each(std::execution::unseq, event_indices.begin(), event_indices.end(), [&](size_t i) {
+        // scatter the Event struct
+        values[i] = events[i].type;
+        coords[i] = events[i].coords;
+    });
     // cumulative sum = inclusive_scan [1, -1, -1, 1, 1] -> [1, 0, -1, 0, 1]
     std::inclusive_scan(std::execution::unseq, values.begin(), values.end(), depths.begin());
+    auto core_end_time = std::chrono::high_resolution_clock::now();
+    auto core_dur = core_end_time - core_start_time;
     // binary search and count fresh
+
+    auto task1_start_time = std::chrono::high_resolution_clock::now();
     int fresh_count = 0;
     for (int64_t query : queries) {
         auto it = std::upper_bound(coords.begin(), coords.end(), query);
@@ -91,10 +97,31 @@ int main() {
             fresh_count++;
         }
     }
-
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    auto task1_end_time = std::chrono::high_resolution_clock::now();
+    auto task1_dur = std::chrono::duration_cast<std::chrono::microseconds>(
+        core_dur + (task1_end_time - task1_end_time));
 
     std::cout << "Fresh Ingredients: " << fresh_count << "\n";
-    std::cout << "Time: " << dur.count() << " us\n";
+    std::cout << "Task 1 Time: " << task1_dur.count() << " us\n";
+
+    auto task2_start_time = std::chrono::high_resolution_clock::now();
+    int64_t total_fresh_length = 0;
+
+    if (!coords.empty()) {
+        auto indices = std::views::iota((size_t)0, coords.size() - 1);
+
+        total_fresh_length =
+            std::transform_reduce(std::execution::unseq, indices.begin(), indices.end(), (int64_t)0,
+                                  std::plus<>(), [&](size_t i) {
+                                      // Branchless Math
+                                      // (depths[i] > 0) becomes integer 1 or 0.
+                                      return (coords[i + 1] - coords[i]) * (depths[i] > 0);
+                                  });
+    }
+    auto task2_end_time = std::chrono::high_resolution_clock::now();
+    auto task2_dur = std::chrono::duration_cast<std::chrono::microseconds>(
+        core_dur + (task2_end_time - task2_start_time));
+    std::cout << "Task 2 Time: " << task2_dur.count() << " us\n";
+
+    std::cout << "Ingredients considered fresh: " << total_fresh_length << "\n";
 }
