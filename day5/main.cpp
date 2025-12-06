@@ -99,7 +99,7 @@ int main() {
     }
     auto task1_end_time = std::chrono::high_resolution_clock::now();
     auto task1_dur = std::chrono::duration_cast<std::chrono::microseconds>(
-        core_dur + (task1_end_time - task1_end_time));
+        core_dur + (task1_end_time - task1_start_time));
 
     std::cout << "Fresh Ingredients: " << fresh_count << "\n";
     std::cout << "Task 1 Time: " << task1_dur.count() << " us\n";
