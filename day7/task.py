@@ -1,6 +1,8 @@
 import os
 import time
+import sys
 from collections import defaultdict
+from functools import cache
 
 
 def get_input(filename: str) -> bytes:
@@ -54,6 +56,27 @@ def task_two(lines: bytes) -> int:
     return total_universes
 
 
+data = open("input").read().strip().split("\n")
+y_max = len(data)
+x_max = len(data[0])
+x_start, y_start = data[0].find("S"), 0
+
+
+@cache
+def req(x, y):
+    if not (0 <= x < x_max) or not (0 <= y < y_max):
+        return 1
+
+    if data[y][x] == ".":
+        return req(x, y + 1)
+    else:
+        return req(x - 1, y + 2) + req(x + 1, y + 2)
+
+
+def task_two_cache() -> int:
+    return req(x_start, y_start)
+
+
 def main() -> None:
     lines = get_input("input").splitlines()
 
@@ -67,7 +90,8 @@ def main() -> None:
 
     # --- Run Task 2 ---
     t0 = time.perf_counter()
-    universes = task_two(lines)
+    # universes = task_two(lines)
+    universes = task_two_cache()
     t1 = time.perf_counter()
 
     print(f"Task 2 Result: {universes}")
