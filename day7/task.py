@@ -90,8 +90,8 @@ def main() -> None:
 
     # --- Run Task 2 ---
     t0 = time.perf_counter()
-    # universes = task_two(lines)
-    universes = task_two_cache()
+    universes = task_two(lines)
+    # universes = task_two_cache()
     t1 = time.perf_counter()
 
     print(f"Task 2 Result: {universes}")
